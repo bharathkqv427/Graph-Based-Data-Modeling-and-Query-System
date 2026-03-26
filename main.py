@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+app = FastAPI() 
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
@@ -16,8 +18,6 @@ def root():
     return FileResponse("static/index.html")
 
 load_dotenv()
-
-app = FastAPI()
 
 # ✅ CORS FIX
 app.add_middleware(
