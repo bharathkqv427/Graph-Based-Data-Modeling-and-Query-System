@@ -452,7 +452,7 @@ async function sendQuery(){
   document.getElementById('graphLoader').style.display='flex';
 
   try{
-    const res  = await fetch(`http://127.0.0.1:8000/query?q=${encodeURIComponent(q)}`);
+    const res  = await fetch(`/query?q=${encodeURIComponent(q)}`);
     const data = await res.json();
     removeThinking(); document.getElementById('graphLoader').style.display='none';
 
