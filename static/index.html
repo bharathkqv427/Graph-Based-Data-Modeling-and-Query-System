@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>O2C Graph Intelligence</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --white:#ffffff;--off:#f7f6f3;--ink:#111210;--ink2:#2c2e2a;--ink3:#5a5d55;--ink4:#9ba09a;
+  --border:#e2e4de;--border2:#d0d3cb;
+  --blue:#1a4fa0;--blue2:#eef2fb;
+  --green:#1a6b3c;--green2:#e8f4ee;
+  --purple:#7b2fa0;--purple2:#f3eefb;
+  --amber:#b8620a;--amber2:#fdf5ec;
+  --red:#c0392b;--red2:#fdf0ee;
+  --teal:#0f7b8a;--teal2:#eaf7f9;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.06);
+  --r:6px;
+}
+html,body{height:100%;overflow:hidden;background:var(--off)}
+body{font-family:'DM Sans',sans-serif;color:var(--ink);display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{height:48px;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:0;flex-shrink:0;box-shadow:var(--shadow-sm);z-index:100}
+.topbar-logo{width:28px;height:28px;background:var(--ink);border-radius:5px;display:flex;align-items:center;justify-content:center;color:white;font-size:0.68rem;font-weight:700;margin-right:14px;flex-shrink:0;font-family:'DM Mono',monospace;letter-spacing:-0.03em}
+.topbar-breadcrumb{display:flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--ink4)}
+.topbar-breadcrumb a{color:var(--ink3);text-decoration:none;cursor:pointer}
+.topbar-breadcrumb a:hover{color:var(--ink)}
+.topbar-breadcrumb .sep{color:var(--border2)}
+.topbar-breadcrumb .cur{color:var(--ink);font-weight:500}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--white);font-family:'DM Sans',sans-serif;font-size:0.75rem;color:var(--ink2);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.tb-btn:hover{background:var(--off);border-color:var(--border2)}
+.tb-btn.dark{background:var(--ink);color:white;border-color:var(--ink)}
+.tb-btn.dark:hover{background:var(--ink2)}
+
+/* WORKSPACE */
+.workspace{flex:1;display:flex;overflow:hidden;position:relative}
+
+/* GRAPH */
+.graph-wrap{flex:1;position:relative;overflow:hidden;background:var(--white)}
+.graph-wrap::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#c5c9c1 1px,transparent 1px);background-size:26px 26px;opacity:0.5;pointer-events:none;z-index:0}
+#network{width:100%;height:100%;position:relative;z-index:1}
+
+/* FLOAT BAR */
+.graph-float-bar{position:absolute;top:16px;left:16px;z-index:10;display:flex;align-items:center;gap:8px}
+.gfb-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--white);font-family:'DM Sans',sans-serif;font-size:0.73rem;color:var(--ink2);cursor:pointer;box-shadow:var(--shadow-sm);transition:all 0.15s}
+.gfb-btn:hover{background:var(--off)}
+.gfb-btn.dark{background:var(--ink);color:white;border-color:var(--ink)}
+.gfb-btn.dark:hover{background:var(--ink2)}
+
+/* STATS */
+.stats-bar{position:absolute;top:16px;right:16px;z-index:10;display:flex;gap:8px}
+.stat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;box-shadow:var(--shadow-sm);text-align:center;min-width:58px}
+.stat-num{font-size:1rem;font-weight:600;color:var(--ink);line-height:1;font-family:'DM Mono',monospace}
+.stat-lbl{font-size:0.6rem;color:var(--ink4);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px}
+
+/* LEGEND */
+.graph-legend{position:absolute;bottom:16px;left:16px;z-index:10;background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:6px}
+.legend-title{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink4);margin-bottom:2px;font-weight:500}
+.legend-row{display:flex;align-items:center;gap:7px;font-size:0.72rem;color:var(--ink2)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* NODE TOOLTIP */
+.node-tooltip{position:absolute;z-index:50;background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-lg);min-width:230px;max-width:290px;animation:tipIn 0.16s ease forwards;overflow:hidden;pointer-events:none}
+@keyframes tipIn{from{opacity:0;transform:translateY(5px) scale(0.97)}to{opacity:1;transform:none}}
+.tip-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.tip-badge{padding:2px 8px;border-radius:20px;font-size:0.63rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;font-family:'DM Mono',monospace}
+.tip-title{font-weight:600;font-size:0.82rem;color:var(--ink)}
+.tip-body{padding:10px 14px;display:flex;flex-direction:column;gap:5px}
+.tip-row{display:flex;gap:8px;align-items:baseline}
+.tip-key{color:var(--ink4);font-size:0.68rem;min-width:80px;flex-shrink:0;font-family:'DM Mono',monospace}
+.tip-val{color:var(--ink2);font-size:0.72rem;word-break:break-all}
+.tip-foot{padding:7px 14px;border-top:1px solid var(--border);font-size:0.65rem;color:var(--ink4);font-style:italic}
+.tip-connections{display:flex;align-items:center;gap:5px;font-size:0.7rem;font-weight:500;color:var(--ink3)}
+
+/* EMPTY STATE */
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;z-index:5}
+.empty-icon{width:52px;height:52px;border:1.5px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink4);font-size:1.2rem}
+.empty-text{font-size:0.78rem;color:var(--ink4);text-align:center;line-height:1.7;max-width:260px}
+.empty-hints{display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:4px}
+.hint-chip{padding:3px 12px;border:1px solid var(--border);border-radius:20px;font-size:0.68rem;color:var(--ink3);background:var(--white)}
+
+/* LOADER */
+.graph-loader{position:absolute;inset:0;background:rgba(247,246,243,0.75);display:flex;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(2px)}
+.loader-spin{width:30px;height:30px;border:2.5px solid var(--border2);border-top-color:var(--ink);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* CHAT PANEL */
+.chat-panel{width:360px;flex-shrink:0;background:var(--white);border-left:1px solid var(--border);display:flex;flex-direction:column;transition:width 0.25s ease;position:relative}
+.chat-panel.collapsed{width:0;overflow:hidden;border-left:none}
+
+.chat-header{padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ch-top{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+.ch-avatar{width:30px;height:30px;background:var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.68rem;font-weight:700;flex-shrink:0}
+.ch-name{font-weight:600;font-size:0.88rem;color:var(--ink)}
+.ch-role{font-size:0.7rem;color:var(--ink4)}
+.ch-sub{font-size:0.72rem;color:var(--ink3);padding-left:40px}
+
+/* messages */
+.messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.messages::-webkit-scrollbar{width:4px}
+.messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+.msg-group{display:flex;flex-direction:column;gap:4px}
+.msg-group.user{align-items:flex-end}
+.msg-group.bot{align-items:flex-start}
+.msg-meta{display:flex;align-items:center;gap:6px;font-size:0.63rem;color:var(--ink4);padding:0 3px}
+.mm-av{width:17px;height:17px;background:var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.48rem;font-weight:700;flex-shrink:0}
+
+.bubble{padding:10px 14px;border-radius:10px;max-width:93%;font-size:0.79rem;line-height:1.6;animation:bubIn 0.2s ease forwards}
+@keyframes bubIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.bubble.user{background:var(--ink);color:white;border-radius:10px 10px 2px 10px}
+.bubble.bot{background:var(--off);color:var(--ink2);border:1px solid var(--border);border-radius:10px 10px 10px 2px}
+.bubble.bot strong{color:var(--ink);font-weight:600}
+.bubble.bot code{background:var(--white);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:'DM Mono',monospace;font-size:0.73rem;color:var(--green)}
+.bubble.error{background:var(--red2);border:1px solid #f0c0bb;color:var(--red);border-radius:10px}
+.bubble.thinking{color:var(--ink4);font-style:italic}
+.thinking-dots span{display:inline-block;animation:blink 1.1s infinite}
+.thinking-dots span:nth-child(2){animation-delay:0.18s}
+.thinking-dots span:nth-child(3){animation-delay:0.36s}
+@keyframes blink{0%,80%,100%{opacity:0.2}40%{opacity:1}}
+
+.intent-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.63rem;font-weight:500;margin-bottom:6px;font-family:'DM Mono',monospace}
+.ip-orders{background:var(--blue2);color:var(--blue)}
+.ip-deliveries{background:var(--green2);color:var(--green)}
+.ip-trace{background:var(--purple2);color:var(--purple)}
+.ip-error{background:var(--red2);color:var(--red)}
+
+.result-list{margin-top:7px;display:flex;flex-direction:column;gap:3px;max-height:140px;overflow-y:auto;scrollbar-width:thin}
+.result-item{padding:3px 7px;background:var(--white);border:1px solid var(--border);border-radius:4px;font-size:0.68rem;font-family:'DM Mono',monospace;color:var(--ink2)}
+
+/* suggestions */
+.suggestions{padding:8px 14px 6px;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;border-top:1px solid var(--border)}
+.sug-label{width:100%;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink4);margin-bottom:2px}
+.sug{padding:4px 10px;border:1px solid var(--border2);border-radius:20px;font-size:0.69rem;color:var(--ink3);cursor:pointer;background:var(--white);transition:all 0.13s}
+.sug:hover{background:var(--off);border-color:var(--ink3);color:var(--ink)}
+
+/* input */
+.input-area{padding:11px 13px;border-top:1px solid var(--border);flex-shrink:0}
+.status-row{display:flex;align-items:center;gap:7px;font-size:0.69rem;color:var(--ink3);margin-bottom:7px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse2 2s infinite}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:0.35}}
+.input-wrap{border:1.5px solid var(--border2);border-radius:var(--r);overflow:hidden;transition:border-color 0.15s,box-shadow 0.15s;background:var(--white)}
+.input-wrap:focus-within{border-color:var(--ink2);box-shadow:0 0 0 3px rgba(17,18,16,0.06)}
+.input-inner{display:flex;align-items:flex-end;gap:8px;padding:9px 9px 9px 13px}
+#chatInput{flex:1;border:none;outline:none;background:transparent;resize:none;font-family:'DM Sans',sans-serif;font-size:0.81rem;color:var(--ink);line-height:1.5;max-height:100px;min-height:21px;scrollbar-width:none}
+#chatInput::placeholder{color:var(--ink4)}
+#chatInput::-webkit-scrollbar{display:none}
+.send-btn{width:30px;height:30px;border-radius:var(--r);border:none;background:var(--ink);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.15s,transform 0.1s}
+.send-btn:hover{background:var(--ink2)}
+.send-btn:active{transform:scale(0.93)}
+.send-btn:disabled{background:var(--border2);cursor:not-allowed;transform:none}
+.send-btn svg{width:13px;height:13px}
+
+/* panel toggle */
+.panel-toggle{position:absolute;left:-13px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:var(--white);border:1px solid var(--border);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:20;font-size:0.7rem;color:var(--ink3);transition:all 0.15s}
+.panel-toggle:hover{background:var(--off);color:var(--ink)}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">O2C</div>
+  <nav class="topbar-breadcrumb">
+    <a>Mapping</a>
+    <span class="sep">/</span>
+    <span class="cur">Order to Cash</span>
+  </nav>
+  <div class="topbar-actions">
+    <button class="tb-btn dark" id="btnOverlay" onclick="toggleOverlay()">⬡ Hide Granular Overlay</button>
+    <button class="tb-btn" id="btnMinimize" onclick="toggleMinimize()">↔ Minimize</button>
+  </div>
+</header>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- GRAPH AREA -->
+  <div class="graph-wrap" id="graphWrap">
+
+    <div class="graph-float-bar">
+      <div class="gfb-btn dark" onclick="fitGraph()">⊕ Fit Graph</div>
+      <div class="gfb-btn" onclick="clearGraph()">✕ Clear</div>
+    </div>
+
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat-card"><div class="stat-num" id="sNodes">—</div><div class="stat-lbl">Nodes</div></div>
+      <div class="stat-card"><div class="stat-num" id="sEdges">—</div><div class="stat-lbl">Edges</div></div>
+      <div class="stat-card"><div class="stat-num" id="sIntent">—</div><div class="stat-lbl">Intent</div></div>
+    </div>
+
+    <div class="graph-legend" id="graphLegend" style="display:none">
+      <div class="legend-title">Entity Types</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--blue)"></div>Order</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--green)"></div>Delivery</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--purple)"></div>Invoice</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--amber)"></div>Payment</div>
+      <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div>Customer</div>
+    </div>
+
+    <div id="network"></div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⬡</div>
+      <div class="empty-text"><strong style="color:var(--ink)">No graph loaded.</strong><br>Ask a question in the chat to visualize the O2C network.</div>
+      <div class="empty-hints">
+        <div class="hint-chip">Try: "Show me all orders"</div>
+        <div class="hint-chip">Try: "Trace billing document 91150187"</div>
+        <div class="hint-chip">Try: "Show incomplete flows"</div>
+      </div>
+    </div>
+
+    <div class="node-tooltip" id="nodeTooltip" style="display:none"></div>
+    <div class="graph-loader" id="graphLoader" style="display:none"><div class="loader-spin"></div></div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel" id="chatPanel">
+    <button class="panel-toggle" id="panelToggle" onclick="togglePanel()">›</button>
+
+    <div class="chat-header">
+      <div class="ch-top">
+        <div class="ch-avatar">AI</div>
+        <div>
+          <div class="ch-name">Graph Agent</div>
+          <div class="ch-role">O2C Intelligence</div>
+        </div>
+      </div>
+      <div class="ch-sub">Chat with Graph · Order to Cash</div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="msg-group bot">
+        <div class="msg-meta"><div class="mm-av">AI</div><span>Graph Agent</span></div>
+        <div class="bubble bot">Hi! I can help you analyze the <strong>Order to Cash</strong> process.<br><br>Ask me about <strong>orders</strong>, <strong>deliveries</strong>, <strong>invoices</strong>, or <strong>trace</strong> full document flows end to end.</div>
+      </div>
+    </div>
+
+    <div class="suggestions">
+      <div class="sug-label">Quick queries</div>
+      <div class="sug" onclick="quickSend('Show me all orders')">All orders</div>
+      <div class="sug" onclick="quickSend('List deliveries')">Deliveries</div>
+      <div class="sug" onclick="quickSend('Trace the full flow')">Trace flow</div>
+      <div class="sug" onclick="quickSend('Show incomplete flows')">Broken flows</div>
+    </div>
+
+    <div class="input-area">
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <span>Graph Agent is awaiting instructions</span>
+      </div>
+      <div class="input-wrap">
+        <div class="input-inner">
+          <textarea id="chatInput" rows="1" placeholder="Analyze anything…"
+            oninput="autoResize(this)"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendQuery()}"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendQuery()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let net = null, overlayOn = true, panelOpen = true, minimized = false;
+
+function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
+
+function togglePanel(){
+  panelOpen = !panelOpen;
+  document.getElementById('chatPanel').classList.toggle('collapsed',!panelOpen);
+  document.getElementById('panelToggle').textContent = panelOpen ? '›' : '‹';
+  if(net) setTimeout(()=>net.fit(),280);
+}
+
+function toggleOverlay(){
+  overlayOn = !overlayOn;
+  document.getElementById('btnOverlay').textContent = overlayOn ? '⬡ Hide Granular Overlay' : '⬡ Show Granular Overlay';
+  ['graphLegend','statsBar'].forEach(id=>{ document.getElementById(id).style.display = overlayOn ? '' : 'none'; });
+}
+
+function toggleMinimize(){
+  minimized = !minimized;
+  document.getElementById('graphWrap').style.flex = minimized ? '0 0 0px' : '1';
+  document.getElementById('btnMinimize').textContent = minimized ? '↔ Expand' : '↔ Minimize';
+  if(net && !minimized) setTimeout(()=>net.fit(),280);
+}
+
+function fitGraph(){ if(net) net.fit({animation:{duration:600,easingFunction:'easeInOutQuad'}}); }
+
+function clearGraph(){
+  if(net){ net.destroy(); net=null; }
+  document.getElementById('emptyState').style.display='flex';
+  document.getElementById('statsBar').style.display='none';
+  document.getElementById('graphLegend').style.display='none';
+  document.getElementById('nodeTooltip').style.display='none';
+  document.getElementById('sNodes').textContent='—';
+  document.getElementById('sEdges').textContent='—';
+  document.getElementById('sIntent').textContent='—';
+}
+
+function nodeStyle(id){
+  const s = (id||'').toString();
+  if(s.startsWith('order'))    return {c:'#1a4fa0',bg:'#eef2fb',b:'#1a4fa0'};
+  if(s.startsWith('delivery')) return {c:'#1a6b3c',bg:'#e8f4ee',b:'#1a6b3c'};
+  if(s.startsWith('invoice'))  return {c:'#7b2fa0',bg:'#f3eefb',b:'#7b2fa0'};
+  if(s.startsWith('payment'))  return {c:'#b8620a',bg:'#fdf5ec',b:'#b8620a'};
+  if(s.startsWith('customer')) return {c:'#c0392b',bg:'#fdf0ee',b:'#c0392b'};
+  return {c:'#2c2e2a',bg:'#f7f6f3',b:'#9ba09a'};
+}
+
+function buildNode(id){
+  const ns = nodeStyle(id);
+  return {
+    id, label: id.replace(/^(order_|delivery_|invoice_|payment_|customer_)/,''),
+    title: id,
+    color:{background:ns.bg,border:ns.b,highlight:{background:ns.bg,border:ns.c},hover:{background:ns.bg,border:ns.c}},
+    font:{color:ns.c,face:'DM Mono',size:11},
+    size:10, shape:'dot', borderWidth:2, borderWidthSelected:3,
+    shadow:{enabled:true,size:5,x:0,y:2,color:'rgba(0,0,0,0.07)'}
+  };
+}
+
+function drawGraph(data){
+  document.getElementById('emptyState').style.display='none';
+  if(overlayOn){ document.getElementById('graphLegend').style.display=''; document.getElementById('statsBar').style.display=''; }
+  document.getElementById('sIntent').textContent = (data.intent||'?').slice(0,6).toUpperCase();
+
+  const nodesMap=new Map(), edges=[];
+  if(!data.data) return;
+
+  if(data.intent==='trace'){
+    data.data.forEach((edge,i)=>{
+      [edge.from,edge.to].forEach(id=>{ if(!nodesMap.has(id)) nodesMap.set(id,buildNode(id)); });
+      edges.push({
+        from:edge.from,to:edge.to,id:'e'+i,
+        color:{color:'rgba(26,79,160,0.18)',highlight:'rgba(26,79,160,0.65)',hover:'rgba(26,79,160,0.45)'},
+        width:1.5,hoverWidth:2.5,
+        smooth:{type:'curvedCW',roundness:0.08},
+        arrows:{to:{enabled:true,scaleFactor:0.45}}
+      });
+    });
+  } else {
+    (data.data||[]).forEach(nodeId=>{
+      if(!nodesMap.has(nodeId)) nodesMap.set(nodeId,buildNode(nodeId));
+    });
+  }
+
+  const nodesArr = Array.from(nodesMap.values());
+  document.getElementById('sNodes').textContent = nodesArr.length;
+  document.getElementById('sEdges').textContent = edges.length;
+
+  const container = document.getElementById('network');
+  const options = {
+    nodes:{},
+    edges:{smooth:{type:'dynamic'}},
+    physics:{
+      enabled:true,
+      solver:'forceAtlas2Based',
+      forceAtlas2Based:{gravitationalConstant:-60,centralGravity:0.005,springLength:140,springConstant:0.06},
+      stabilization:{enabled:true,iterations:200,fit:true}
+    },
+    interaction:{hover:true,tooltipDelay:200,zoomView:true,dragView:true},
+    layout:{improvedLayout:true}
+  };
+
+  if(net) net.destroy();
+  net = new vis.Network(container,{nodes:nodesArr,edges},options);
+
+  net.on('click',function(params){
+    const tip = document.getElementById('nodeTooltip');
+    if(!params.nodes.length){ tip.style.display='none'; return; }
+    showTooltip(params.nodes[0], params.pointer.DOM.x, params.pointer.DOM.y);
+  });
+  net.on('dragging',()=>{ document.getElementById('nodeTooltip').style.display='none'; });
+  net.on('stabilizationIterationsDone',()=>{
+    net.fit({animation:{duration:700,easingFunction:'easeInOutQuad'}});
+  });
+}
+
+function showTooltip(nodeId, x, y){
+  const ns = nodeStyle(nodeId);
+  const parts = nodeId.split('_');
+  const type = parts[0];
+  const eid  = parts.slice(1).join('_');
+  const badge = `background:${ns.bg};color:${ns.c};border:1px solid ${ns.b}`;
+  const tip = document.getElementById('nodeTooltip');
+  tip.innerHTML = `
+    <div class="tip-head">
+      <span class="tip-badge" style="${badge}">${type}</span>
+      <span class="tip-title">${eid||nodeId}</span>
+    </div>
+    <div class="tip-body">
+      <div class="tip-row"><span class="tip-key">Entity</span><span class="tip-val">${type.charAt(0).toUpperCase()+type.slice(1)}</span></div>
+      <div class="tip-row"><span class="tip-key">Document ID</span><span class="tip-val">${eid||nodeId}</span></div>
+      <div class="tip-row"><span class="tip-key">Node key</span><span class="tip-val">${nodeId}</span></div>
+    </div>
+    <div class="tip-foot">Click elsewhere to dismiss</div>
+  `;
+  const wrap = document.getElementById('graphWrap').getBoundingClientRect();
+  let tx=x+12, ty=y+12;
+  if(tx+295>wrap.width)  tx=x-305;
+  if(ty+160>wrap.height) ty=y-170;
+  if(tx<4) tx=4; if(ty<4) ty=4;
+  tip.style.left=tx+'px'; tip.style.top=ty+'px'; tip.style.display='block';
+}
+
+// ── MESSAGES ──
+function addMsg(html, type){
+  const box = document.getElementById('messages');
+  const g   = document.createElement('div');
+  g.className = `msg-group ${type}`;
+  const meta = type==='user'
+    ? `<div class="msg-meta" style="justify-content:flex-end"><span>You</span></div>`
+    : `<div class="msg-meta"><div class="mm-av">AI</div><span>Graph Agent</span></div>`;
+  g.innerHTML = `${meta}<div class="bubble ${type}">${html}</div>`;
+  box.appendChild(g);
+  box.scrollTop = box.scrollHeight;
+}
+
+function addThinking(){
+  const box=document.getElementById('messages');
+  const g=document.createElement('div');
+  g.className='msg-group bot'; g.id='thinkingMsg';
+  g.innerHTML=`<div class="msg-meta"><div class="mm-av">AI</div><span>Graph Agent</span></div><div class="bubble bot thinking">Processing<span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  box.appendChild(g); box.scrollTop=box.scrollHeight;
+}
+function removeThinking(){ const t=document.getElementById('thinkingMsg'); if(t) t.remove(); }
+
+function intentPill(intent){
+  const map={orders:'ip-orders',deliveries:'ip-deliveries',trace:'ip-trace'};
+  return `<div class="intent-pill ${map[intent]||'ip-error'}">${intent||'unknown'}</div>`;
+}
+
+// ── SEND ──
+async function sendQuery(){
+  const inp=document.getElementById('chatInput');
+  const q=inp.value.trim(); if(!q) return;
+  inp.value=''; inp.style.height='auto';
+  document.getElementById('sendBtn').disabled=true;
+  addMsg(q,'user'); addThinking();
+  document.getElementById('graphLoader').style.display='flex';
+
+  try{
+    const res  = await fetch(`http://127.0.0.1:8000/query?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    removeThinking(); document.getElementById('graphLoader').style.display='none';
+
+    if(data.error){
+      addMsg(`<div class="intent-pill ip-error">Error</div>${data.error}`,'error');
+    } else if(data.message){
+      addMsg(data.message,'bot');
+    } else {
+      const count=(data.data||[]).length;
+      let listHtml='';
+      if(count>0 && count<=10){
+        const items = data.intent==='trace'
+          ? data.data.map(e=>`<div class="result-item">${e.from} → ${e.to}</div>`).join('')
+          : data.data.map(n=>`<div class="result-item">${n}</div>`).join('');
+        listHtml=`<div class="result-list">${items}</div>`;
+      }
+      addMsg(`${intentPill(data.intent)}Found <strong>${count}</strong> result${count!==1?'s':''} for <strong>${data.intent}</strong>. Graph updated.${listHtml}`,'bot');
+      drawGraph(data);
+    }
+  } catch(err){
+    removeThinking(); document.getElementById('graphLoader').style.display='none';
+    addMsg(`<div class="intent-pill ip-error">Connection Error</div>Could not reach the API at <code>localhost:8000</code>. Make sure your FastAPI server is running.`,'error');
+  }
+  document.getElementById('sendBtn').disabled=false;
+  document.getElementById('chatInput').focus();
+}
+
+function quickSend(t){ document.getElementById('chatInput').value=t; sendQuery(); }
+
+// dismiss tooltip
+document.getElementById('graphWrap').addEventListener('click',function(e){
+  if(!e.target.closest('#nodeTooltip') && !e.target.closest('.vis-network')){
+    document.getElementById('nodeTooltip').style.display='none';
+  }
+});
+</script>
+</body>
+</html>
